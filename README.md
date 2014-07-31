@@ -1,7 +1,8 @@
 Alpha
+
 Requires LIBSSH
 
-Chat.c ONLY TESTS LIB SSH 
+sshAuth.c ONLY TESTS LIB SSH  
 
 Nothing working utill I SAY IT IS BRUH!! 
 
