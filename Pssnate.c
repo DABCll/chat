@@ -55,7 +55,7 @@ int verifyHost(ssh_session session)
 		fprintf(stderr, "Could not Find know host file");
 	case SSH_SERVER_NOT_KNOWN:
 		hexa = ssh_get_hexa(hash,hashLen);
-		fprintf(stderr, "The server is unknown. Do you trust the host key?\n");
+		fprintf(stderr, "The server is unknown. Do you trust the host key?(yes/no)\n");
         fprintf(stderr, "Public key hash: %s\n", hexa);
         free(hexa);
         if (fgets(buf, sizeof(buf), stdin) == NULL)
