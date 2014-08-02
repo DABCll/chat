@@ -20,6 +20,9 @@
         \/     \/         */
 
 
+//SSH debug level
+#define DEBUG 3
+
 /////////////////////////////////////////////////////////
 //This Fucntion is taken from the libssh documentation//
 //For the most part...                               //
@@ -85,10 +88,10 @@ int main(int argc, char *argv[])
 {
     ssh_session sshSession;
 	int check;
-	char *passWord, *host = NULL, *buf = NULL, *user = NULL;
+	char *passWord, *host = NULL, *buf = NULL, *user = NULL, *cmd = NULL;
 	int opt, port = 0;
 
-	while((opt = getopt (argc, argv, "h:p:u:")) != -1){
+	while((opt = getopt (argc, argv, "h:p:u:c:")) != -1){
 		switch(opt){
 		case 'h':
 			host = optarg;
@@ -99,6 +102,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'u':
 			user = optarg;
+			break;
+		case 'c':
+			cmd = optarg;
 			break;
 		}
 	}
@@ -112,17 +118,24 @@ int main(int argc, char *argv[])
 		if(sshSession == NULL)
 			exit(-1);
 		ssh_options_set(sshSession, SSH_OPTIONS_HOST, host);
-	}
-	else if(!host){
+	}else if(!host){
 		sshSession = ssh_new();
         if(sshSession == NULL)
             exit(-1);
         ssh_options_set(sshSession, SSH_OPTIONS_HOST, "localhost");
-	}
+	}else
+		fprintf(stderr, "HostName Error");
+	//SSH session defaults to port 22
 	if(port)
 		ssh_options_set(sshSession, SSH_OPTIONS_PORT, &port);
 	if(user)
 		ssh_options_set(sshSession, SSH_OPTIONS_USER, user);
+
+
+	//      DEBUG
+	ssh_set_log_level(DEBUG);
+	//     /DEBUG
+
 
 	//////////////////////
 	//Connect to server//
@@ -146,22 +159,97 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
+	///////////////////////////////////////
+	//Banner (I always have ssh banners)//
+	/////////////////////////////////////
+
+             /* NOT WORKING?? */
+	
+	const char *banner;
+	banner = ssh_get_clientbanner(sshSession);
+	fprintf(stderr, "%s\n", banner);
+
 	///////////////////////////
 	//Authenticate ourselves//
 	/////////////////////////
-
+	
 	passWord = getpass("Password: ");
 	check = ssh_userauth_password(sshSession, NULL, passWord);
 	if(check != SSH_AUTH_SUCCESS){
-	fprintf(stderr, "Error authenticating with password: %s\n",
+		fprintf(stderr, "Error authenticating with password: %s\n",
 			ssh_get_error(sshSession));
 	ssh_disconnect(sshSession);
 	ssh_free(sshSession);
 	exit(-1);
-}
+	}
+	
+	//////////////////////////
+	//This sets the channel//
+	////////////////////////
 
-ssh_disconnect(sshSession);
-ssh_free(sshSession);
+	ssh_channel channel;
+	int rc;
 
+	channel = ssh_channel_new(sshSession);
+	if(channel == NULL)
+		fprintf(stderr, "ERROR in channel creation: -%i\n", SSH_ERROR);
+	rc = ssh_channel_open_session(channel);
+	if(rc != SSH_OK)
+		fprintf(stderr, "ERROR in channel open session: -%i\n", rc);
+	if(cmd){
+		rc = ssh_channel_request_exec(channel, cmd);
+		if(rc != SSH_OK){
+			ssh_channel_free(channel);
+			fprintf(stderr, "ERROR in channel request exec: -%i\n", rc);
+		}
+	}else if(!cmd){
+		rc = ssh_channel_request_exec(channel, "echo Hellow Worald");
+		if(rc != SSH_OK){
+			ssh_channel_free(channel);
+			fprintf(stderr, "ERROR in channel request exec(non user): -%i\n", rc);
+		}
+	}else
+		fprintf(stderr, "ERROR parsing CMD\n");
+
+	////////////////////////////
+	//This listens for output//
+	//VERY DIRTY FOR ALPHA  //
+	/////////////////////////
+	
+	char buffer[256];
+	unsigned int nbytes;
+	nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+	while (nbytes > 0)
+	{
+		if (fwrite(buffer, 1, nbytes, stdout) != nbytes)
+		{
+			ssh_channel_close(channel);
+			ssh_channel_free(channel);
+		}
+		nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+	}
+	if (nbytes < 0)
+	{
+		ssh_channel_close(channel);
+		ssh_channel_free(channel);
+	}
+
+	///////////////////////////////
+	//Send EOF to channel,      //
+	//close and free the memory//
+	////////////////////////////
+
+	ssh_channel_send_eof(channel);
+	ssh_channel_close(channel);
+	ssh_channel_free(channel);
+
+	////////////////////////////
+	//Disconnect SSH session,//
+	//clear memory          //
+	/////////////////////////
+
+	ssh_disconnect(sshSession);
+	ssh_free(sshSession);
+	
     return 0;
 }

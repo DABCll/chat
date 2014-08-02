@@ -12,4 +12,9 @@ Pssnate.c is a wrapper for ssh using the libssh (basic password auth)
 
 usage './Pssnate -h "user@host OR host" -p "port" -u "user"(if not set in host opt)'
 
+*update*
+
+append '-c "COMMAND"' to exec a command
+
+ADDED MACRO DEBUG default: 3
 
