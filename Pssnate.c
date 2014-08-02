@@ -14,9 +14,14 @@
 \____|__  (____  /__|  \___  >
         \/     \/         */
 
+//////////
+//Usage//
+////////
 
-//SSH debug level
-#define DEBUG 3
+void usage(){
+	printf("\nusage: Pssnate [-v <vvv> verbose] [-h <hostname>] [-u <user>] [-p <port>] [-c \"<cmd>\"]\n");
+	printf("defaults:\n\thost: localhost\n\tport: 22\n\tcmd: echo Hellow Worald\n\n");
+}
 
 /////////////////////////////////////////////////////////
 //This Fucntion is taken from the libssh documentation//
@@ -84,9 +89,10 @@ int main(int argc, char *argv[])
     ssh_session sshSession;
 	int check;
 	char *passWord, *host = NULL, *buf = NULL, *user = NULL, *cmd = NULL;
-	int opt, port = 0;
-
-	while((opt = getopt (argc, argv, "h:p:u:c:")) != -1){
+	int opt, port = 0, debug = 0;
+	if(argc < 2)
+		usage();
+	while((opt = getopt (argc, argv, "h:p:u:c:v")) != -1){
 		switch(opt){
 		case 'h':
 			host = optarg;
@@ -100,6 +106,11 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			cmd = optarg;
+			break;
+		case 'v':
+			debug++;
+			if(debug > 4)
+				debug = 4;
 			break;
 		}
 	}
@@ -128,7 +139,7 @@ int main(int argc, char *argv[])
 
 
 	//      DEBUG
-	ssh_set_log_level(DEBUG);
+	ssh_set_log_level(debug);
 	//     /DEBUG
 
 
